@@ -35,6 +35,8 @@ import (
 
 type nodeServer struct {
 	*csicommon.DefaultNodeServer
+	Id       string
+	Segments map[string]string
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -178,6 +180,19 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	var topology *csi.Topology
+
+	if len(ns.Segments) > 0 {
+		topology = &csi.Topology{Segments: ns.Segments}
+	}
+
+	return &csi.NodeGetInfoResponse{
+		NodeId:             ns.Id,
+		AccessibleTopology: topology,
+	}, nil
 }
 
 // NodeGetCapabilities returns the supported capabilities of the node server

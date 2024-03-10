@@ -18,25 +18,39 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/ctrox/csi-s3/pkg/driver"
 )
 
 func init() {
 	flag.Set("logtostderr", "true")
+	flag.Func("segment", "A key/value tuple to add as segment topology for this node. (like rack=xyz)", func(s string) error {
+		if !strings.Contains(s, ":") {
+			return fmt.Errorf("Segments must be a key/value pair separated by ':': %s", s)
+		}
+		parts := strings.Split(s, ":")
+		if len(parts) != 2 {
+			return fmt.Errorf("Segments must be a key/value pair separated by ':': %s", s)
+		}
+		segments[parts[0]] = parts[1]
+		return nil
+	})
 }
 
 var (
 	endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
 	nodeID   = flag.String("nodeid", "", "node id")
+	segments = make(map[string]string)
 )
 
 func main() {
 	flag.Parse()
 
-	driver, err := driver.New(*nodeID, *endpoint)
+	driver, err := driver.New(*nodeID, *endpoint, segments)
 	if err != nil {
 		log.Fatal(err)
 	}

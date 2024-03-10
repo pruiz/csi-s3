@@ -38,6 +38,8 @@ import (
 
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
+	NodeId         string
+	EnableTopology bool
 }
 
 const (
@@ -130,12 +132,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, fmt.Errorf("error setting bucket metadata: %w", err)
 	}
 
+	topologies := []*csi.Topology{}
+	if cs.EnableTopology {
+		topologies = append(topologies, &csi.Topology{Segments: map[string]string{TopologyKeyNode: cs.NodeId}})
+	}
+
 	glog.V(4).Infof("create volume %s", volumeID)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      volumeID,
-			CapacityBytes: capacityBytes,
-			VolumeContext: req.GetParameters(),
+			VolumeId:           volumeID,
+			CapacityBytes:      capacityBytes,
+			VolumeContext:      req.GetParameters(),
+			AccessibleTopology: topologies,
 		},
 	}, nil
 }

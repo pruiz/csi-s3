@@ -25,29 +25,42 @@ import (
 
 type driver struct {
 	driver   *csicommon.CSIDriver
+	nodeid   string
 	endpoint string
+	segments map[string]string
 
 	ids *identityServer
 	ns  *nodeServer
 	cs  *controllerServer
 }
 
+const (
+	TopologyKeyNode = "ch.ctrox.csi.s3-driver/nodeid"
+)
+
 var (
-	vendorVersion = "v1.2.0-rc.2"
+	vendorVersion = "v1.2.0-rc.2-pruiz-240209"
 	driverName    = "ch.ctrox.csi.s3-driver"
 )
 
 // New initializes the driver
-func New(nodeID string, endpoint string) (*driver, error) {
+func New(nodeID string, endpoint string, segments map[string]string) (*driver, error) {
 	d := csicommon.NewCSIDriver(driverName, vendorVersion, nodeID)
 	if d == nil {
 		glog.Fatalln("Failed to initialize CSI Driver.")
 	}
 
 	s3Driver := &driver{
-		endpoint: endpoint,
 		driver:   d,
+		nodeid:   nodeID,
+		endpoint: endpoint,
+		segments: segments,
 	}
+
+	if len(segments) > 0 {
+		s3Driver.segments[TopologyKeyNode] = nodeID
+	}
+
 	return s3Driver, nil
 }
 
@@ -60,12 +73,16 @@ func (s3 *driver) newIdentityServer(d *csicommon.CSIDriver) *identityServer {
 func (s3 *driver) newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
+		NodeId:                  s3.nodeid,
+		EnableTopology:          (len(s3.segments) > 0),
 	}
 }
 
 func (s3 *driver) newNodeServer(d *csicommon.CSIDriver) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
+		Id:                s3.nodeid,
+		Segments:          s3.segments,
 	}
 }
 
