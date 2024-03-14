@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
 	"net/url"
 	"path"
+
+	"github.com/golang/glog"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 const (
@@ -27,6 +28,7 @@ type s3Client struct {
 type Config struct {
 	AccessKeyID     string
 	SecretAccessKey string
+	Provider        string
 	Region          string
 	Endpoint        string
 	Mounter         string
@@ -55,7 +57,7 @@ func NewClient(cfg *Config) (*s3Client, error) {
 		endpoint = u.Hostname() + ":" + u.Port()
 	}
 	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(client.Config.AccessKeyID, client.Config.SecretAccessKey, client.Config.Region),
+		Creds:  credentials.NewStaticV4(client.Config.AccessKeyID, client.Config.SecretAccessKey, ""),
 		Secure: ssl,
 	})
 	if err != nil {
@@ -70,6 +72,7 @@ func NewClientFromSecret(secret map[string]string) (*s3Client, error) {
 	return NewClient(&Config{
 		AccessKeyID:     secret["accessKeyID"],
 		SecretAccessKey: secret["secretAccessKey"],
+		Provider:        secret["provider"],
 		Region:          secret["region"],
 		Endpoint:        secret["endpoint"],
 		// Mounter is set in the volume preferences, not secrets

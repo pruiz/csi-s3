@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	vendorVersion = "v1.2.0-rc.2-pruiz-240209"
+	vendorVersion = "v1.2.0-rc.2-pruiz-240214"
 	driverName    = "ch.ctrox.csi.s3-driver"
 )
 

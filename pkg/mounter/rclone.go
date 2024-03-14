@@ -11,6 +11,7 @@ import (
 // Implements Mounter
 type rcloneMounter struct {
 	meta            *s3.FSMeta
+	provider        string
 	url             string
 	region          string
 	accessKeyID     string
@@ -24,6 +25,7 @@ const (
 func newRcloneMounter(meta *s3.FSMeta, cfg *s3.Config) (Mounter, error) {
 	return &rcloneMounter{
 		meta:            meta,
+		provider:        cfg.Provider,
 		url:             cfg.Endpoint,
 		region:          cfg.Region,
 		accessKeyID:     cfg.AccessKeyID,
@@ -40,12 +42,18 @@ func (rclone *rcloneMounter) Unstage(stageTarget string) error {
 }
 
 func (rclone *rcloneMounter) Mount(source string, target string) error {
+	provider := "AWS"
+
+	if rclone.provider != "" {
+		provider = rclone.provider
+	}
+
 	args := []string{
 		"mount",
 		fmt.Sprintf(":s3:%s", path.Join(rclone.meta.BucketName, rclone.meta.Prefix, rclone.meta.FSPath)),
 		fmt.Sprintf("%s", target),
 		"--daemon",
-		"--s3-provider=AWS",
+		fmt.Sprintf("--s3-provider=%s", provider),
 		"--s3-env-auth=true",
 		fmt.Sprintf("--s3-region=%s", rclone.region),
 		fmt.Sprintf("--s3-endpoint=%s", rclone.url),
