@@ -44,9 +44,10 @@ func init() {
 }
 
 var (
-	endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-	nodeID   = flag.String("nodeid", "", "node id")
-	segments = make(map[string]string)
+	endpoint    = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
+	nodeID      = flag.String("nodeid", "", "node id")
+	clearorphan = flag.Bool("clearorphan", false, "clear orphaned processes")
+	segments    = make(map[string]string)
 )
 
 func main() {
@@ -62,27 +63,29 @@ func main() {
 	// Since all available mounters are instructed to daemonize, we need to reap
 	// the daemonized processes since their parent (the mounter) exists once the daemon
 	// is running.
-	go func() {
-		ch := make(chan os.Signal, 1)
+	if *clearorphan {
+		go func() {
+			ch := make(chan os.Signal, 1)
 
-		signal.Notify(ch, syscall.SIGCHLD)
+			signal.Notify(ch, syscall.SIGCHLD)
 
-		for range ch {
-			var status syscall.WaitStatus
-			pid, err := syscall.Wait4(-1, &status, 0, nil)
-			if err != nil {
-				// we might receive ECHILD when the mounter exits after daemonizing.
-				// We'll be late calling Wait4 here as that process is already reaped
-				// since we're using exec.Command().Run() which already calls Waitpid
-				if val, ok := err.(syscall.Errno); !ok || val != syscall.ECHILD {
-					log.Printf("failed to call wait4: %s\n", err)
+			for range ch {
+				var status syscall.WaitStatus
+				pid, err := syscall.Wait4(-1, &status, 0, nil)
+				if err != nil {
+					// we might receive ECHILD when the mounter exits after daemonizing.
+					// We'll be late calling Wait4 here as that process is already reaped
+					// since we're using exec.Command().Run() which already calls Waitpid
+					if val, ok := err.(syscall.Errno); !ok || val != syscall.ECHILD {
+						log.Printf("failed to call wait4: %s\n", err)
+					}
+
+				} else {
+					log.Printf("reaped child %d: status=%d\n", pid, status.ExitStatus())
 				}
-
-			} else {
-				log.Printf("repeated child %d: status=%d\n", pid, status.ExitStatus())
 			}
-		}
-	}()
+		}()
+	}
 
 	driver, err := driver.New(*nodeID, *endpoint, segments)
 	if err != nil {
